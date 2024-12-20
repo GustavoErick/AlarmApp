@@ -1,6 +1,8 @@
 package com.example.alarmapp
 
 import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.TimePickerDialog
 import android.content.BroadcastReceiver
@@ -40,8 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.example.alarmapp.ui.theme.AlarmAppTheme
 import java.util.Calendar
 
@@ -186,7 +191,10 @@ private fun setAlarm(context: Context, hour: Int, minute: Int) {
     }
 
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-    val intent = Intent(context, AlarmReceiver::class.java)
+    val intent = Intent(context, AlarmReceiver::class.java).apply {
+        putExtra("HOUR", hour)
+        putExtra("MINUTE", minute)
+    }
     val pendingIntent = PendingIntent.getBroadcast(
         context,
         0,
@@ -217,7 +225,10 @@ private fun requestExactAlarmPermission(context: Context) {
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val hour = intent.getIntExtra("HOUR", 0)
+        val minute = intent.getIntExtra("MINUTE", 0)
         Toast.makeText(context, "Alarme Disparado!", Toast.LENGTH_LONG).show()
+        showNotification(context, hour, minute)
     }
 }
 
@@ -247,5 +258,35 @@ fun NumberPicker(
         }) {
             Icon(painter = painterResource(android.R.drawable.arrow_up_float), contentDescription = "Increment")
         }
+    }
+}
+
+fun showNotification(context: Context, hour: Int, minute: Int) {
+    val channelId = "ALARM_CHANNEL"
+    val notificationId = 1
+
+    // Criar o canal (necessário para Android 8+)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val name = "Canal de Alarme"
+        val descriptionText = "Canal para notificações de alarmes"
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(channelId, name, importance).apply {
+            description = descriptionText
+        }
+        val notificationManager: NotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    // Criar a notificação
+    val builder = NotificationCompat.Builder(context, channelId)
+        .setSmallIcon(R.mipmap.ic_launcher)
+        .setContentTitle("Alarme")
+        .setContentText("Seu alarme definido para ${hour}:${minute}")
+        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+
+    // Exibir a notificação
+    with(NotificationManagerCompat.from(context)) {
+        notify(notificationId, builder.build())
     }
 }
